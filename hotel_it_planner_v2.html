@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1e40af">
+<title>Hotel IT Officer — Daily Planner</title>
+<style>
+/* ════════════════════════════════ TOKENS ═══ */
+:root{
+  --bg:#f1f5f9; --surface:#ffffff; --s2:#f8fafc; --s3:#e2e8f0;
+  --text:#0f172a; --t2:#475569; --t3:#94a3b8;
+  --bdr:rgba(15,23,42,.08);
+  --blue:#2563eb; --blue-bg:#eff6ff; --blue-t:#1d4ed8;
+  --green:#16a34a; --green-bg:#f0fdf4;
+  --amber:#d97706; --amber-bg:#fffbeb;
+  --r:14px; --rsm:9px;
+  --sidebar:240px;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#0f172a; --surface:#1e293b; --s2:#263548; --s3:#334155;
+    --text:#f1f5f9; --t2:#94a3b8; --t3:#64748b;
+    --bdr:rgba(241,245,249,.08);
+    --blue:#3b82f6; --blue-bg:#1e3352; --blue-t:#93c5fd;
+    --green:#22c55e; --green-bg:#052e16;
+    --amber:#f59e0b; --amber-bg:#1c1204;
+  }
+}
+
+/* ════════════════════════════════ RESET ════ */
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  background:var(--bg);color:var(--text);font-size:14px;
+  line-height:1.5;
+}
+
+/* ════════════════════════════════ APP SHELL ═ */
+.app{display:flex;min-height:100vh}
+
+/* ─── SIDEBAR (desktop) ─────────────────── */
+.sidebar{
+  width:var(--sidebar);flex-shrink:0;
+  background:var(--surface);border-right:1px solid var(--bdr);
+  position:fixed;top:0;left:0;height:100vh;
+  display:flex;flex-direction:column;z-index:200;
+  padding:24px 0 16px;
+  overflow-y:auto;
+}
+.sidebar-brand{padding:0 20px 24px;border-bottom:1px solid var(--bdr)}
+.brand-title{font-size:15px;font-weight:800;color:var(--blue);letter-spacing:-.3px}
+.brand-sub{font-size:10px;color:var(--t3);margin-top:2px}
+.sidebar-nav{flex:1;padding:16px 12px 0;display:flex;flex-direction:column;gap:4px}
+.snav-btn{
+  display:flex;align-items:center;gap:12px;padding:10px 12px;
+  border-radius:var(--rsm);border:none;background:none;
+  color:var(--t2);font-size:13px;font-weight:600;cursor:pointer;
+  text-align:left;width:100%;transition:all .15s;
+}
+.snav-btn:hover{background:var(--s2);color:var(--text)}
+.snav-btn.active{background:var(--blue-bg);color:var(--blue)}
+.snav-icon{font-size:18px;width:22px;text-align:center;flex-shrink:0}
+.sidebar-footer{padding:16px 20px 0;border-top:1px solid var(--bdr);margin-top:auto}
+.sidebar-phase{
+  font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px;
+  background:var(--amber-bg);color:var(--amber);display:inline-block;
+}
+
+/* ─── MAIN CONTENT ──────────────────────── */
+.main{
+  flex:1;margin-left:var(--sidebar);
+  min-width:0;display:flex;flex-direction:column;
+}
+.page-header{
+  background:var(--surface);border-bottom:1px solid var(--bdr);
+  padding:16px 24px;position:sticky;top:0;z-index:100;
+}
+.page-header-inner{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.ph-title{font-size:18px;font-weight:800;letter-spacing:-.3px}
+.ph-sub{font-size:11px;color:var(--t3);margin-top:2px}
+.pbar{height:5px;background:var(--s3);border-radius:3px;overflow:hidden;margin-top:8px}
+.pfill{height:100%;border-radius:3px;background:var(--green);transition:width .4s}
+.ph-pct{font-size:11px;color:var(--t3);white-space:nowrap}
+
+/* ─── BOTTOM NAV (mobile only) ──────────── */
+.bottom-nav{
+  display:none;position:fixed;bottom:0;left:0;right:0;
+  background:var(--surface);border-top:1px solid var(--bdr);
+  z-index:200;padding-bottom:env(safe-area-inset-bottom,0);
+}
+.bnav-inner{display:flex}
+.bnav-btn{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  padding:10px 0 8px;gap:3px;border:none;background:none;
+  color:var(--t3);font-size:10px;font-weight:600;cursor:pointer;
+  transition:color .15s;
+}
+.bnav-btn.active{color:var(--blue)}
+.bnav-icon{font-size:20px;line-height:1}
+
+/* ─── SCREEN / CONTENT AREA ─────────────── */
+.screen{display:none;padding:20px 24px 32px;animation:fadeIn .15s ease}
+.screen.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+
+/* ────────────────────────────────────────
+   COMPONENTS
+──────────────────────────────────────── */
+.sec-lbl{
+  font-size:10px;font-weight:700;color:var(--t3);
+  text-transform:uppercase;letter-spacing:.08em;
+  margin:0 0 8px;
+}
+.card{
+  background:var(--surface);border-radius:var(--r);
+  padding:16px;border:1px solid var(--bdr);
+  margin-bottom:16px;
+}
+.card:last-child{margin-bottom:0}
+
+/* metrics */
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.metric{
+  background:var(--s2);border-radius:var(--rsm);
+  padding:12px 10px;text-align:center;border:1px solid var(--bdr);
+}
+.m-val{font-size:22px;font-weight:800;line-height:1}
+.m-lbl{font-size:10px;color:var(--t3);margin-top:4px}
+
+/* slider */
+.slider-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.slider-lbl{font-size:13px;font-weight:600}
+.slider-val{font-size:17px;font-weight:800;color:var(--blue)}
+input[type=range]{
+  -webkit-appearance:none;width:100%;height:5px;
+  border-radius:3px;background:var(--s3);outline:none;cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:24px;height:24px;border-radius:50%;
+  background:var(--blue);cursor:pointer;
+  box-shadow:0 2px 8px rgba(37,99,235,.3);
+}
+input[type=range]::-moz-range-thumb{
+  width:24px;height:24px;border-radius:50%;border:none;
+  background:var(--blue);cursor:pointer;
+}
+.tick-row{display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin-top:5px}
+
+/* study blocks */
+.block{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 0;border-bottom:1px solid var(--bdr);
+}
+.block:last-child{border-bottom:none;padding-bottom:0}
+.b-pip{width:4px;height:48px;border-radius:2px;flex-shrink:0}
+.b-info{flex:1;min-width:0}
+.b-title{font-size:13px;font-weight:700}
+.b-detail{font-size:11px;color:var(--t2);margin-top:2px;line-height:1.4}
+.b-right{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0}
+.b-time{font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;background:var(--s2);color:var(--t2)}
+.b-start{
+  font-size:10px;font-weight:700;padding:4px 10px;
+  border:1.5px solid var(--blue);border-radius:6px;
+  background:none;color:var(--blue);cursor:pointer;transition:all .15s;
+}
+.b-start:hover{background:var(--blue-bg)}
+.b-start:active{transform:scale(.97)}
+
+/* timer */
+.timer-box{
+  margin-top:12px;padding:16px;border-radius:var(--rsm);
+  background:var(--blue-bg);display:none;text-align:center;
+}
+.timer-disp{
+  font-size:48px;font-weight:900;color:var(--blue);
+  font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1;
+}
+.timer-subj{font-size:11px;color:var(--blue-t);margin-top:4px;font-weight:600}
+.timer-stop{
+  margin-top:12px;padding:8px 28px;background:var(--blue);
+  color:#fff;border:none;border-radius:var(--rsm);font-size:12px;font-weight:700;cursor:pointer;
+}
+
+/* checklist */
+.chk-item{
+  display:flex;align-items:flex-start;gap:12px;
+  padding:11px 0;border-bottom:1px solid var(--bdr);cursor:pointer;
+}
+.chk-item:last-child{border-bottom:none;padding-bottom:0}
+.chk-item:hover .chk-box{border-color:var(--green)}
+.chk-box{
+  width:20px;height:20px;border-radius:6px;border:2px solid var(--bdr);
+  flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  transition:all .2s;margin-top:1px;background:var(--s2);
+}
+.chk-box.on{background:var(--green);border-color:var(--green)}
+.chk-box.on::after{
+  content:'';width:9px;height:5px;
+  border-left:2px solid #fff;border-bottom:2px solid #fff;
+  transform:rotate(-45deg) translateY(-1px);
+}
+.chk-title{font-size:13px;font-weight:600;transition:color .2s}
+.chk-title.done{text-decoration:line-through;color:var(--t3)}
+.chk-freq{font-size:11px;color:var(--t3);margin-top:2px}
+.chk-freq b{color:var(--blue-t)}
+
+/* daily note */
+.daily-note{
+  padding:14px;background:var(--blue-bg);border-radius:var(--rsm);
+  border-left:3px solid var(--blue);font-size:12px;color:var(--blue-t);
+  line-height:1.7;font-style:italic;
+}
+
+/* timeline */
+.tl-row{display:flex;gap:12px}
+.tl-spine{display:flex;flex-direction:column;align-items:center;width:14px;flex-shrink:0}
+.tl-dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--bdr);flex-shrink:0;margin-top:4px}
+.tl-dot.done{background:var(--green);border-color:var(--green)}
+.tl-dot.current{background:var(--blue);border-color:var(--blue)}
+.tl-dot.up{background:var(--s3);border-color:var(--s3)}
+.tl-line{width:2px;flex:1;background:var(--s3);border-radius:1px;min-height:14px}
+.tl-body{flex:1;padding-bottom:14px}
+.tl-name{font-size:12px;font-weight:700;padding-top:2px;line-height:1.3}
+.tl-name.done{color:var(--green)}
+.tl-name.current{color:var(--blue)}
+.tl-name.up{color:var(--t2)}
+.tl-cert{
+  display:inline-block;font-size:10px;font-weight:600;
+  margin-top:4px;padding:2px 8px;border-radius:5px;
+  background:var(--blue-bg);color:var(--blue-t);
+}
+.tl-cert.exam{background:var(--green-bg);color:var(--green)}
+.tl-cert.multi{background:var(--amber-bg);color:var(--amber)}
+
+/* streak */
+.streak-hero{display:flex;align-items:center;gap:16px}
+.streak-num{font-size:56px;font-weight:900;color:var(--amber);line-height:1}
+.streak-info h3{font-size:16px;font-weight:800}
+.streak-info p{font-size:12px;color:var(--t2);margin-top:3px;line-height:1.5}
+.week-row{display:flex;gap:6px;margin-top:14px}
+.wday{
+  flex:1;height:40px;border-radius:var(--rsm);
+  background:var(--s2);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:3px;
+}
+.wday.ok{background:var(--amber)}
+.wday.today{outline:2px solid var(--blue);outline-offset:2px}
+.wday-lbl{font-size:9px;font-weight:700;color:var(--t3)}
+.wday.ok .wday-lbl{color:rgba(255,255,255,.85)}
+.wday-dot{width:5px;height:5px;border-radius:50%;background:var(--s3)}
+.wday.ok .wday-dot{background:rgba(255,255,255,.7)}
+
+/* phase tracker */
+.phase-item{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 0;border-bottom:1px solid var(--bdr);cursor:pointer;
+}
+.phase-item:last-child{border-bottom:none;padding-bottom:0}
+.phase-item:hover .pn-up{background:var(--s3)}
+.phase-num{
+  width:28px;height:28px;border-radius:var(--rsm);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:800;flex-shrink:0;transition:all .2s;
+}
+.pn-done{background:var(--green-bg);color:var(--green)}
+.pn-now{background:var(--blue-bg);color:var(--blue)}
+.pn-up{background:var(--s2);color:var(--t3)}
+.phase-label{font-size:12px;font-weight:600}
+.done-txt{color:var(--t3);text-decoration:line-through}
+.now-txt{color:var(--text)}
+.up-txt{color:var(--t2)}
+
+/* cert tracker */
+.cert-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 0;border-bottom:1px solid var(--bdr);
+}
+.cert-item:last-child{border-bottom:none;padding-bottom:0}
+.cert-name{font-size:13px;font-weight:700}
+.cert-pri{font-size:10px;color:var(--t3);margin-top:1px}
+.cert-tag{
+  font-size:10px;font-weight:700;padding:4px 11px;
+  border-radius:20px;border:none;cursor:pointer;white-space:nowrap;
+  transition:opacity .15s;
+}
+.cert-tag:hover{opacity:.8}
+.tag-now{background:var(--blue-bg);color:var(--blue-t)}
+.tag-next{background:var(--amber-bg);color:var(--amber)}
+.tag-done{background:var(--green-bg);color:var(--green)}
+.tag-later{background:var(--s2);color:var(--t3)}
+
+/* install banner */
+.install-banner{
+  padding:12px 14px;background:var(--s2);border-radius:var(--rsm);
+  border:1px solid var(--bdr);font-size:11px;color:var(--t2);
+  line-height:1.6;display:flex;gap:10px;align-items:flex-start;margin-bottom:16px;
+}
+
+/* ════════════════ RESPONSIVE GRID HELPERS ═ */
+/* Two-column layout for wider screens */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:0 20px;align-items:start}
+.two-col-left{min-width:0}
+.two-col-right{min-width:0}
+/* Single col override for small screens (default) */
+@media(max-width:767px){
+  .two-col{display:block}
+  .two-col-left .card,.two-col-right .card{margin-bottom:12px}
+}
+
+/* ════════════════ BREAKPOINTS ══════════════ */
+
+/* ── MOBILE < 640px ──────────────────────── */
+@media(max-width:639px){
+  .app{display:block}
+  .sidebar{display:none}
+  .main{margin-left:0}
+  .bottom-nav{display:block}
+  .screen{padding:12px 12px 80px}
+  .page-header{padding:12px 14px 10px}
+  .ph-title{font-size:16px}
+  .metrics{gap:8px}
+  .m-val{font-size:19px}
+  .card{padding:13px;border-radius:12px;margin-bottom:12px}
+  .sec-lbl{font-size:9px}
+  .streak-num{font-size:44px}
+  .snav-btn{font-size:12px}
+}
+
+/* ── TABLET 640–1023px ───────────────────── */
+@media(min-width:640px) and (max-width:1023px){
+  .app{display:block}
+  .sidebar{display:none}
+  .main{margin-left:0}
+  .bottom-nav{display:block}
+  .screen{padding:16px 20px 80px;max-width:780px;margin:0 auto}
+  .page-header{padding:14px 20px}
+  /* activate two-column for today and progress */
+  .two-col{display:grid}
+}
+
+/* ── DESKTOP 1024–1279px ─────────────────── */
+@media(min-width:1024px){
+  .sidebar{display:flex}
+  .main{margin-left:var(--sidebar)}
+  .bottom-nav{display:none}
+  .screen{padding:24px 32px 40px;max-width:1100px}
+  .page-header{padding:18px 32px}
+  /* activate two-column */
+  .two-col{display:grid}
+  .metrics{grid-template-columns:repeat(3,1fr)}
+}
+
+/* ── WIDE 1280px+ ────────────────────────── */
+@media(min-width:1280px){
+  :root{--sidebar:260px}
+  .screen{max-width:1200px}
+  .ph-title{font-size:20px}
+}
+
+/* ── ULTRAWIDE 1600px+ ───────────────────── */
+@media(min-width:1600px){
+  :root{--sidebar:280px}
+  .screen{max-width:1400px}
+  /* Three columns on ultrawide for today */
+  .today-three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 20px;align-items:start}
+}
+@media(max-width:1599px){.today-three{display:block}}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ══════════════════════════ SIDEBAR ══════ -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-title">Hotel IT Officer</div>
+      <div class="brand-sub">Daily Career Planner</div>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="snav-btn active" onclick="goTo('today',this,'sb')">
+        <span class="snav-icon">📋</span> Today
+      </button>
+      <button class="snav-btn" onclick="goTo('roadmap',this,'sb')">
+        <span class="snav-icon">🗺️</span> Roadmap
+      </button>
+      <button class="snav-btn" onclick="goTo('progress',this,'sb')">
+        <span class="snav-icon">📈</span> Progress
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <span class="sidebar-phase" id="sb-phase-pill">Phase 4 — Core Systems</span>
+      <div style="font-size:10px;color:var(--t3);margin-top:8px">
+        <span id="sb-pct">22%</span> overall complete
+      </div>
+      <div class="pbar" style="margin-top:6px">
+        <div class="pfill" id="sb-pfill" style="width:22%"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ══════════════════════════ MAIN ═════════ -->
+  <main class="main">
+
+    <!-- ── PAGE HEADER ────────────────────── -->
+    <div class="page-header">
+      <div class="page-header-inner">
+        <div>
+          <div class="ph-title" id="ph-title">Today</div>
+          <div class="ph-sub" id="today-date"></div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;color:var(--t3);margin-bottom:4px">
+            <span id="pct-label">22%</span> complete
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <div style="width:120px"><div class="pbar"><div class="pfill" id="main-pfill" style="width:22%"></div></div></div>
+            <span style="font-size:11px;color:var(--t3)" id="m-done-small">4/19</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════ TODAY ════ -->
+    <div id="screen-today" class="screen active">
+
+      <div class="metrics">
+        <div class="metric">
+          <div class="m-val" style="color:var(--green)" id="m-done">4</div>
+          <div class="m-lbl">Phases done</div>
+        </div>
+        <div class="metric">
+          <div class="m-val" style="font-size:15px;color:var(--blue)">CompTIA A+</div>
+          <div class="m-lbl">Cert focus now</div>
+        </div>
+        <div class="metric">
+          <div class="m-val" style="font-size:15px" id="m-months">~6 mo</div>
+          <div class="m-lbl">Est. to Hotel IT</div>
+        </div>
+      </div>
+
+      <!-- two-column layout on tablet/desktop -->
+      <div class="two-col">
+
+        <div class="two-col-left">
+          <div class="sec-lbl">Daily study hours</div>
+          <div class="card">
+            <div class="slider-row">
+              <span class="slider-lbl">Hours today</span>
+              <span class="slider-val" id="hr-val">3 hrs</span>
+            </div>
+            <input type="range" id="hr-slider" min="1" max="8" value="3" step="1"
+                   oninput="setHours(+this.value)">
+            <div class="tick-row">
+              <span>1</span><span>2</span><span>3</span><span>4</span>
+              <span>5</span><span>6</span><span>7</span><span>8</span>
+            </div>
+          </div>
+
+          <div class="sec-lbl">Study plan</div>
+          <div class="card">
+            <div id="plan-blocks"></div>
+            <div id="timer-box" class="timer-box">
+              <div class="timer-disp" id="timer-disp">00:00</div>
+              <div class="timer-subj" id="timer-subj">Studying</div>
+              <button class="timer-stop" onclick="stopTimer()">Mark complete &amp; stop</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="two-col-right">
+          <div class="sec-lbl">Daily checklist</div>
+          <div class="card">
+            <div id="checklist"></div>
+          </div>
+
+          <div class="sec-lbl">Daily note</div>
+          <div class="daily-note" id="daily-note"></div>
+        </div>
+
+      </div><!-- /two-col -->
+    </div><!-- /today -->
+
+    <!-- ══════════════════════════ ROADMAP ══ -->
+    <div id="screen-roadmap" class="screen">
+      <div class="sec-lbl">Phase &amp; certification timeline</div>
+      <div class="card" style="max-width:700px">
+        <div id="timeline-list"></div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════ PROGRESS ═ -->
+    <div id="screen-progress" class="screen">
+
+      <div class="install-banner">
+        <span style="font-size:20px;flex-shrink:0">📱</span>
+        <span>On Android: open in Chrome → tap menu → <b>Add to Home Screen</b> to install as an app. On iOS: tap Share → <b>Add to Home Screen</b>.</span>
+      </div>
+
+      <div class="two-col">
+
+        <div class="two-col-left">
+          <div class="sec-lbl">Study streak</div>
+          <div class="card">
+            <div class="streak-hero">
+              <div class="streak-num" id="streak-num">0</div>
+              <div class="streak-info">
+                <h3>Day streak</h3>
+                <p id="streak-msg">Check off 3+ habits to start your streak.</p>
+              </div>
+            </div>
+            <div class="week-row" id="week-row"></div>
+          </div>
+
+          <div class="sec-lbl">Phase tracker — tap to mark complete</div>
+          <div class="card"><div id="phase-tracker"></div></div>
+        </div>
+
+        <div class="two-col-right">
+          <div class="sec-lbl">Certification tracker — tap to mark passed</div>
+          <div class="card"><div id="cert-tracker"></div></div>
+        </div>
+
+      </div>
+    </div>
+
+  </main><!-- /main -->
+</div><!-- /app -->
+
+<!-- ══════════════════════════ BOTTOM NAV (mobile/tablet) ══ -->
+<nav class="bottom-nav">
+  <div class="bnav-inner">
+    <button class="bnav-btn active" onclick="goTo('today',this,'bn')">
+      <span class="bnav-icon">📋</span>Today
+    </button>
+    <button class="bnav-btn" onclick="goTo('roadmap',this,'bn')">
+      <span class="bnav-icon">🗺️</span>Roadmap
+    </button>
+    <button class="bnav-btn" onclick="goTo('progress',this,'bn')">
+      <span class="bnav-icon">📈</span>Progress
+    </button>
+  </div>
+</nav>
+
+<!-- ══════════════════════════ DATA + LOGIC ══════════════════ -->
+<script>
+/* ════════ DATA ═════════════════════════════════════════ */
+const PLANS={
+  1:[
+    {c:'#2563eb',title:'CompTIA A+ — Professor Messer',detail:'One module, take notes, no skipping.',mins:40},
+    {c:'#16a34a',title:'Quick lab task',detail:'One hands-on item in your VM.',mins:20}
+  ],
+  2:[
+    {c:'#2563eb',title:'CompTIA A+ — Professor Messer',detail:'One full module + self-test.',mins:45},
+    {c:'#d97706',title:'Phase 4 — Core Systems',detail:'Registry, NTFS permissions, services.',mins:40},
+    {c:'#16a34a',title:'Lab practice',detail:'Apply one concept in VM.',mins:35}
+  ],
+  3:[
+    {c:'#2563eb',title:'CompTIA A+ — Professor Messer',detail:'One module + practice questions from ExamTopics.',mins:60},
+    {c:'#d97706',title:'Phase 4 — Core Systems',detail:'Registry hives, NTFS, services, UAC, icacls.',mins:60},
+    {c:'#16a34a',title:'Hands-on lab session',detail:'Permissions, service configs, regedit tasks.',mins:60}
+  ],
+  4:[
+    {c:'#2563eb',title:'CompTIA A+ — Messer',detail:'Module + practice exam section.',mins:75},
+    {c:'#d97706',title:'Phase 4 — Deep study',detail:'Registry hives, NTFS MFT, UAC elevation, icacls.',mins:90},
+    {c:'#16a34a',title:'Lab session',detail:'Multi-step: permissions + service recovery.',mins:60},
+    {c:'#64748b',title:'LinkedIn / Bayt.com',detail:'One post or 15-min UAE hotel IT role scan.',mins:15}
+  ],
+  5:[
+    {c:'#2563eb',title:'CompTIA A+ — Messer + ExamTopics',detail:'Module + full practice set.',mins:75},
+    {c:'#d97706',title:'Phase 4 — Deep study + notes',detail:'Build structured summary notes.',mins:120},
+    {c:'#16a34a',title:'Extended lab',detail:'Break-fix: corrupt permission + failed service.',mins:60},
+    {c:'#64748b',title:'Portfolio documentation',detail:'Write up your lab — this is your CV portfolio.',mins:25}
+  ],
+  6:[
+    {c:'#2563eb',title:'A+ — Messer + 50 questions',detail:'Module + ExamTopics drill.',mins:90},
+    {c:'#d97706',title:'Phase 4 + Phase 5 preview',detail:'Wrap Core Systems, preview Admin Tools.',mins:120},
+    {c:'#16a34a',title:'Extended lab',detail:'Windows Server VM: AD + file services + permissions.',mins:90},
+    {c:'#64748b',title:'PowerShell scripting',detail:'Write first automation: disk report or user list.',mins:30}
+  ],
+  7:[
+    {c:'#2563eb',title:'A+ — Messer + full mock exam',detail:'Simulate exam. Note every weak area.',mins:90},
+    {c:'#d97706',title:'Phase content + gap review',detail:'Current phase + fill gaps from earlier phases.',mins:120},
+    {c:'#16a34a',title:'Full lab session',detail:'Multi-system scenario with written documentation.',mins:120},
+    {c:'#64748b',title:'LinkedIn + scripting',detail:'One post + one new PowerShell script.',mins:30}
+  ],
+  8:[
+    {c:'#2563eb',title:'A+ — Mock exams + weak drill',detail:'Full simulation + targeted domain review.',mins:120},
+    {c:'#d97706',title:'Phase deep study + review',detail:'Current phase + systematic gap filling.',mins:120},
+    {c:'#16a34a',title:'Full lab session',detail:'Multi-machine: Windows Server + client + AD + DNS.',mins:120},
+    {c:'#64748b',title:'Stand-out skills block',detail:'PowerShell + LinkedIn + portfolio documentation.',mins:60}
+  ]
+};
+const MONTHS=[12,9,6,5,4,3.5,3,2.5];
+const HABITS=[
+  {id:'h1',title:'Watch 1 Professor Messer video',freq:'Daily — morning'},
+  {id:'h2',title:'Study current phase content',freq:'Daily — focused block'},
+  {id:'h3',title:'Hands-on lab practice in VM',freq:'Daily — evening'},
+  {id:'h4',title:'Post one insight on LinkedIn',freq:'Weekly'},
+  {id:'h5',title:'Scan Bayt.com for UAE hotel IT roles',freq:'Every Friday'},
+  {id:'h6',title:'Review week and fill knowledge gaps',freq:'Every Sunday'}
+];
+const PHASES=[
+  {n:0,t:'Computer Hardware Foundations'},{n:1,t:'Firmware & BIOS/UEFI'},
+  {n:2,t:'Windows Boot Process'},{n:3,t:'Windows Architecture & Internals'},
+  {n:4,t:'Windows Core Systems'},{n:5,t:'Windows Administrative Tools'},
+  {n:6,t:'Windows Networking'},{n:7,t:'Drivers & Hardware Communication'},
+  {n:8,t:'Advanced Troubleshooting'},{n:9,t:'Sysinternals Suite'},
+  {n:10,t:'Active Directory & Domain Admin'},{n:11,t:'Windows Server Fundamentals'},
+  {n:12,t:'Microsoft 365 & Cloud Admin'},{n:13,t:'Backup, DR & Business Continuity'},
+  {n:14,t:'Windows Security Fundamentals'},{n:15,t:'Hospitality IT Systems'},
+  {n:16,t:'IT Operations & Vendor Mgmt'},{n:17,t:'Certifications (parallel)'},
+  {n:18,t:'Stand-Out Skills (parallel)'}
+];
+const CERTS=[
+  {name:'CompTIA A+',pri:1,s:'now'},
+  {name:'CompTIA Network+',pri:1,s:'next'},
+  {name:'Microsoft MS-900',pri:1,s:'later'},
+  {name:'Microsoft AZ-900',pri:2,s:'later'},
+  {name:'Microsoft MD-102',pri:2,s:'later'},
+  {name:'Microsoft AZ-104',pri:2,s:'later'},
+  {name:'CompTIA Security+',pri:3,s:'later'},
+  {name:'Cisco CCNA',pri:3,s:'later'},
+  {name:'ITIL 4 Foundation',pri:3,s:'later'}
+];
+const TIMELINE=[
+  {n:'0–3',title:'Hardware → Windows Architecture',s:'done',cert:null},
+  {n:'4',title:'Windows Core Systems',s:'current',cert:{t:'CompTIA A+ — studying now',c:''}},
+  {n:'5',title:'Administrative Tools',s:'up',cert:{t:'CompTIA A+ — continue parallel',c:''}},
+  {n:'6',title:'Windows Networking',s:'up',cert:{t:'A+ exam target + Network+ begins',c:'exam'}},
+  {n:'7',title:'Drivers & Hardware Comms',s:'up',cert:{t:'Network+ — studying',c:''}},
+  {n:'8–9',title:'Troubleshooting + Sysinternals',s:'up',cert:{t:'Network+ exam target',c:'exam'}},
+  {n:'10',title:'Active Directory',s:'up',cert:{t:'CCNA begins alongside',c:''}},
+  {n:'11',title:'Windows Server Fundamentals',s:'up',cert:{t:'CCNA + MS-900 begins',c:''}},
+  {n:'12',title:'Microsoft 365 & Cloud',s:'up',cert:{t:'MS-900 → AZ-900 → MD-102 → AZ-104',c:'multi'}},
+  {n:'13',title:'Backup & DR',s:'up',cert:{t:'AZ-104 continues',c:''}},
+  {n:'14',title:'Windows Security',s:'up',cert:{t:'Security+ begins',c:''}},
+  {n:'15',title:'Hospitality IT Systems',s:'up',cert:{t:'Security+ exam target',c:'exam'}},
+  {n:'16',title:'IT Operations & Vendor Mgmt',s:'up',cert:{t:'ITIL 4 Foundation',c:'exam'}},
+  {n:'17–18',title:'Certs + Stand-Out Skills',s:'up',cert:{t:'All certs in hand — Hotel IT ready',c:'exam'}}
+];
+const NOTES=[
+  'You know hotel operations from the inside. Most IT candidates never will. That is your edge.',
+  'Every VM lab session is a hotel server you are learning to fix before it breaks in front of guests.',
+  'Phase 4 is the daily grind layer. Own the registry and services — Phase 5 will feel like a review.',
+  'The A+ is your first door-opener in Dubai. Keep the Messer videos running every single day.',
+  'Dubai hotel IT roles are posted right now. Your job is to be ready when the right one appears.',
+  'Most candidates apply with no certs and no lab experience. You are building both simultaneously.',
+  'Consistency at 3 hours per day beats one 12-hour cramming session every single week.',
+  'Document your lab setup. That documentation is your portfolio before you have a job title.'
+];
+
+/* ════════ STATE ════════════════════════════════════════ */
+const ST={
+  get(){try{return JSON.parse(localStorage.getItem('hotelIT')||'{}')}catch{return{}}},
+  save(s){try{localStorage.setItem('hotelIT',JSON.stringify(s))}catch{}}
+};
+function todayKey(){const d=new Date();return`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`}
+
+/* ════════ TIMER ════════════════════════════════════════ */
+let _ti=null,_ts=0;
+function startTimer(mins,title){
+  if(_ti)clearInterval(_ti);
+  _ts=mins*60;
+  document.getElementById('timer-subj').textContent=title;
+  document.getElementById('timer-box').style.display='block';
+  renderTimer();
+  _ti=setInterval(()=>{_ts--;if(_ts<=0){stopTimer();return}renderTimer()},1000);
+}
+function stopTimer(){
+  if(_ti)clearInterval(_ti);_ti=null;
+  document.getElementById('timer-box').style.display='none';
+  const s=ST.get(),k=todayKey();
+  if(!s.streakDays)s.streakDays=[];
+  if(!s.streakDays.includes(k))s.streakDays.push(k);
+  ST.save(s);updateStreakUI();
+}
+function renderTimer(){
+  const m=Math.floor(_ts/60),s=_ts%60;
+  document.getElementById('timer-disp').textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+}
+
+/* ════════ PLAN ═════════════════════════════════════════ */
+function setHours(h){
+  const s=ST.get();s.lastHours=h;ST.save(s);
+  document.getElementById('hr-val').textContent=h+(h===1?' hr':' hrs');
+  document.getElementById('m-months').textContent='~'+Math.round(MONTHS[h-1])+' mo';
+  const blocks=PLANS[h]||PLANS[3];
+  document.getElementById('plan-blocks').innerHTML=blocks.map(b=>`
+    <div class="block">
+      <div class="b-pip" style="background:${b.c}"></div>
+      <div class="b-info">
+        <div class="b-title">${b.title}</div>
+        <div class="b-detail">${b.detail}</div>
+      </div>
+      <div class="b-right">
+        <span class="b-time">${b.mins}m</span>
+        <button class="b-start" onclick="startTimer(${b.mins},'${b.title.replace(/'/g,'')}')">▶ start</button>
+      </div>
+    </div>`).join('');
+}
+
+/* ════════ CHECKLIST ════════════════════════════════════ */
+function buildChecklist(){
+  const s=ST.get(),k=todayKey(),done=(s.checks&&s.checks[k])||[];
+  document.getElementById('checklist').innerHTML=HABITS.map(h=>`
+    <div class="chk-item" onclick="toggleCheck('${h.id}')">
+      <div class="chk-box ${done.includes(h.id)?'on':''}" id="cb-${h.id}"></div>
+      <div>
+        <div class="chk-title ${done.includes(h.id)?'done':''}" id="ct-${h.id}">${h.title}</div>
+        <div class="chk-freq"><b>${h.freq}</b></div>
+      </div>
+    </div>`).join('');
+}
+function toggleCheck(id){
+  const s=ST.get(),k=todayKey();
+  if(!s.checks)s.checks={};
+  if(!s.checks[k])s.checks[k]=[];
+  const i=s.checks[k].indexOf(id);
+  if(i>-1)s.checks[k].splice(i,1);else s.checks[k].push(id);
+  if(s.checks[k].length>=3){
+    if(!s.streakDays)s.streakDays=[];
+    if(!s.streakDays.includes(k))s.streakDays.push(k);
+  }
+  ST.save(s);
+  const on=s.checks[k].includes(id);
+  const cb=document.getElementById('cb-'+id),ct=document.getElementById('ct-'+id);
+  if(cb)cb.className='chk-box'+(on?' on':'');
+  if(ct)ct.className='chk-title'+(on?' done':'');
+  updateStreakUI();
+}
+
+/* ════════ TIMELINE ═════════════════════════════════════ */
+function buildTimeline(){
+  document.getElementById('timeline-list').innerHTML=TIMELINE.map((p,i)=>{
+    const last=i===TIMELINE.length-1;
+    const cert=p.cert?`<div class="tl-cert ${p.cert.c}">${p.cert.t}</div>`:'';
+    return`<div class="tl-row">
+      <div class="tl-spine">
+        <div class="tl-dot ${p.s}"></div>
+        ${!last?'<div class="tl-line"></div>':''}
+      </div>
+      <div class="tl-body">
+        <div class="tl-name ${p.s}">Phase ${p.n} — ${p.title}</div>
+        ${cert}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ════════ STREAK ═══════════════════════════════════════ */
+function updateStreakUI(){
+  const s=ST.get(),days=(s.streakDays||[]),today=new Date();
+  let streak=0;
+  for(let i=0;i<90;i++){
+    const d=new Date(today);d.setDate(d.getDate()-i);
+    const k=`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+    if(days.includes(k))streak++;else break;
+  }
+  document.getElementById('streak-num').textContent=streak;
+  const msgs=['Check off 3+ habits today to start your streak.','Day one. The chain starts now.',
+    'Two days. Don\'t break it.','Three days in. This is becoming real.',
+    'One week streak. You\'re building something.',
+    'Consistent. This is the version of you that gets to Dubai.',
+    'Outstanding. This discipline is your real competitive edge.'];
+  const mi=streak===0?0:streak===1?1:streak===2?2:streak<4?3:streak<7?4:streak<14?5:6;
+  document.getElementById('streak-msg').textContent=msgs[mi];
+  const dn=['Su','Mo','Tu','We','Th','Fr','Sa'];
+  document.getElementById('week-row').innerHTML=Array.from({length:7},(_,i)=>{
+    const d=new Date(today);d.setDate(d.getDate()-6+i);
+    const k=`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+    return`<div class="wday ${days.includes(k)?'ok':''} ${i===6?'today':''}">
+      <span class="wday-lbl">${dn[d.getDay()]}</span><span class="wday-dot"></span></div>`;
+  }).join('');
+}
+
+/* ════════ PHASE TRACKER ════════════════════════════════ */
+function buildPhaseTracker(){
+  const s=ST.get(),done=s.phasesDone||[0,1,2,3];
+  document.getElementById('phase-tracker').innerHTML=PHASES.map(p=>{
+    const isDone=done.includes(p.n),isCurr=p.n===4&&!isDone;
+    return`<div class="phase-item" onclick="tapPhase(${p.n})">
+      <div class="phase-num ${isDone?'pn-done':isCurr?'pn-now':'pn-up'}">${isDone?'✓':isCurr?'▶':p.n}</div>
+      <div class="phase-label ${isDone?'done-txt':isCurr?'now-txt':'up-txt'}">Phase ${p.n} — ${p.t}</div>
+    </div>`;
+  }).join('');
+}
+function tapPhase(n){
+  const s=ST.get();
+  if(!s.phasesDone)s.phasesDone=[0,1,2,3];
+  const i=s.phasesDone.indexOf(n);
+  if(i>-1)s.phasesDone.splice(i,1);else s.phasesDone.push(n);
+  const pct=Math.round(s.phasesDone.length/PHASES.length*100);
+  ST.save(s);
+  updateProgressUI(s.phasesDone.length,pct);
+  buildPhaseTracker();
+}
+
+/* ════════ CERT TRACKER ═════════════════════════════════ */
+function buildCertTracker(){
+  const s=ST.get(),done=s.certsDone||[];
+  const cmap={now:'tag-now',next:'tag-next',done:'tag-done',later:'tag-later'};
+  const clbl={now:'Studying now',next:'Up next',done:'Passed ✓',later:'Upcoming'};
+  document.getElementById('cert-tracker').innerHTML=CERTS.map(c=>{
+    const isDone=done.includes(c.name),st=isDone?'done':c.s;
+    return`<div class="cert-item">
+      <div><div class="cert-name">${c.name}</div><div class="cert-pri">Priority ${c.pri}</div></div>
+      <button class="cert-tag ${cmap[st]}" onclick="toggleCert('${c.name}')">${clbl[st]}</button>
+    </div>`;
+  }).join('');
+}
+function toggleCert(name){
+  const s=ST.get();
+  if(!s.certsDone)s.certsDone=[];
+  const i=s.certsDone.indexOf(name);
+  if(i>-1)s.certsDone.splice(i,1);else s.certsDone.push(name);
+  ST.save(s);buildCertTracker();
+}
+
+/* ════════ PROGRESS UI SYNC ═════════════════════════════ */
+function updateProgressUI(doneCount,pct){
+  document.getElementById('main-pfill').style.width=pct+'%';
+  document.getElementById('sb-pfill').style.width=pct+'%';
+  document.getElementById('pct-label').textContent=pct+'%';
+  document.getElementById('sb-pct').textContent=pct+'%';
+  document.getElementById('m-done').textContent=doneCount;
+  document.getElementById('m-done-small').textContent=doneCount+'/'+PHASES.length;
+}
+
+/* ════════ NAV ══════════════════════════════════════════ */
+const PAGE_TITLES={today:'Today',roadmap:'Roadmap',progress:'Progress'};
+function goTo(name,btn,source){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  // sync both navs
+  document.querySelectorAll('.snav-btn,.bnav-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll(`[onclick*="'${name}'"]`).forEach(b=>b.classList.add('active'));
+  document.getElementById('ph-title').textContent=PAGE_TITLES[name];
+  window.scrollTo(0,0);
+}
+
+/* ════════ INIT ═════════════════════════════════════════ */
+function init(){
+  const s=ST.get();
+  const done=s.phasesDone||[0,1,2,3];
+  const pct=Math.round(done.length/PHASES.length*100);
+
+  // Date
+  document.getElementById('today-date').textContent=
+    new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  // Note
+  document.getElementById('daily-note').textContent=NOTES[new Date().getDate()%NOTES.length];
+
+  // Progress
+  updateProgressUI(done.length,pct);
+
+  // Plan
+  const hrs=s.lastHours||3;
+  document.getElementById('hr-slider').value=hrs;
+  setHours(hrs);
+
+  buildChecklist();
+  buildTimeline();
+  buildPhaseTracker();
+  buildCertTracker();
+  updateStreakUI();
+}
+
+init();
+</script>
+</body>
+</html>
